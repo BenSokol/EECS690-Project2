@@ -7,11 +7,16 @@
  *  Description:	Periodically traces current program memory location
  *
  */
+#include "Drivers/UARTStdio_Initialization.h"
+#include "Drivers/uartstdio.h"
+#include "driverlib/interrupt.h"
+
 
 #include	"inc/hw_ints.h"
 #include	"inc/hw_memmap.h"
 #include	"inc/hw_types.h"
 #include	"inc/hw_uart.h"
+#include    "inc/hw_sysctl.h"
 
 #include	<stddef.h>
 #include	<stdbool.h>
@@ -24,6 +29,28 @@
 
 #include	"FreeRTOS.h"
 #include	"task.h"
+#include    "semphr.h"
+
+
+extern uint32_t Float_to_Int32( float theFloat );
+
+xSemaphoreHandle Timer_0_A_Semaphore;
+
+extern void Timer_0_A_ISR( void *pvParameters )
+{
+    portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+
+    //Clear interrupt and do something
+    TimerIntClear( TIMER0_BASE, TIMER_TIMA_TIMEOUT );
+    /////////////////////////////////////////////////////
+    UARTStdio_Initializaiton();
+    UARTprintf( "test %i", Float_to_Int32( 321.012 ) );
+
+    /////////////////////////////////////////////////////
+
+    //Give the Timer_0_A_Semaphore back
+    xSemaphoreGiveFromISR( Timer_0_A_Semaphore, &xHigherPriorityTaskWoken );
+}
 
 extern void Task_ProgramTrace( void* pvParameters ) {
 

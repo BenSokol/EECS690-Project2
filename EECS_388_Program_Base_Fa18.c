@@ -29,6 +29,7 @@ extern void Task_Blink_LED_PortN_1( void *pvParameters );
 extern void Task_ReportTime( void *pvParameters );
 extern void Task_ReportData( void *pvParameters );
 extern void Task_ProgramTrace( void* pvParameters );
+extern void Timer_0_A_ISR( void *pvParameters );
 
 int main( void ) {
 
@@ -53,7 +54,8 @@ int main( void ) {
 	//
 	//  Create a task to program trace
 	//
-	xTaskCreate( Task_ProgramTrace, "Trace", 1024, NULL, 1, NULL );
+	//xTaskCreate( Task_ProgramTrace, "Trace", 1024, NULL, 1, NULL );
+	xTaskCreate( Timer_0_A_ISR, "Timer", 1024, NULL, 1, NULL);
 
 	UARTprintf( "FreeRTOS Starting!\n" );
 
