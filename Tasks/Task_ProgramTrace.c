@@ -25,6 +25,7 @@
 
 #include	"driverlib/sysctl.h"
 #include	"driverlib/pin_map.h"
+#include    "driverlib/timer.h"
 #include	"driverlib/gpio.h"
 
 #include	"FreeRTOS.h"
@@ -32,19 +33,23 @@
 #include    "semphr.h"
 
 
-extern uint32_t Float_to_Int32( float theFloat );
-
+extern int32_t Float_to_Int32();
 xSemaphoreHandle Timer_0_A_Semaphore;
+extern uint32_t data[256];
 
-extern void Timer_0_A_ISR( void *pvParameters )
+
+
+extern void Timer_0_A_ISR()
 {
     portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 
     //Clear interrupt and do something
     TimerIntClear( TIMER0_BASE, TIMER_TIMA_TIMEOUT );
     /////////////////////////////////////////////////////
-    UARTStdio_Initializaiton();
-    UARTprintf( "test %i", Float_to_Int32( 321.012 ) );
+    //UARTprintf( "In the ISR!\n" );
+
+    UARTprintf( "test %X \n", Float_to_Int32() );
+
 
     /////////////////////////////////////////////////////
 
@@ -54,16 +59,35 @@ extern void Timer_0_A_ISR( void *pvParameters )
 
 extern void Task_ProgramTrace( void* pvParameters ) {
 
-	const uint32_t	Interrupt_Frequency; //TODO
+	//const uint32_t	Interrupt_Frequency; //TODO
 
+    //Initialize Semaphore
+    vSemaphoreCreateBinary( Timer_0_A_Semaphore );
+
+    SysCtlPeripheralEnable( SYSCTL_PERIPH_TIMER0 );
+
+    IntRegister( INT_TIMER0A, Timer_0_A_ISR );
+
+    TimerConfigure( TIMER0_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC );
+
+    TimerPrescaleSet( TIMER0_BASE, TIMER_A, 9 );
+
+    TimerLoadSet( TIMER0_BASE, TIMER_A, 50000 );
+
+    //Enable Timer_0_A interrupt in NVIC
+    IntEnable( INT_TIMER0A );
+
+    // Enable (Start) Timer
+    TimerEnable( TIMER0_BASE, TIMER_A );
 
 	while ( 1 ) {
         //
         // Periodically call interrupt
         //
+	    xSemaphoreTake( Timer_0_A_Semaphore, portMAX_DELAY );
 
 
-		vTaskDelay( ( 500 * configTICK_RATE_HZ ) / 10000 );
+		//vTaskDelay( ( 500 * configTICK_RATE_HZ ) / 10000 );
 	}
 }
 

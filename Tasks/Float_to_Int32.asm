@@ -48,7 +48,12 @@ Float_to_Int32:								; Entry point
 ;;	  no Stack space need be allocated.
 ;;
 ;;	This subroutine returns the input argument in R0.
-;;
-		BX			LR				; Branch to the program address in the Link Register
 
+		;;ADDS R0,R15
+;;
+		MOV R0, PC
+		BX			LR		; Branch to the program address in the Link Register
+		;B          B3
+        ;STW    B3, *A4
+        ;NOP    4
 		.end
