@@ -33,7 +33,7 @@
 #include    "semphr.h"
 
 
-extern int32_t Float_to_Int32();
+extern int32_t Get_PC();
 xSemaphoreHandle Timer_0_A_Semaphore;
 extern uint32_t data[256];
 
@@ -42,19 +42,28 @@ extern uint32_t data[256];
 extern void Timer_0_A_ISR()
 {
     portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-
-    //Clear interrupt and do something
+    //UARTprintf( "handler\n" );
     TimerIntClear( TIMER0_BASE, TIMER_TIMA_TIMEOUT );
-    /////////////////////////////////////////////////////
-    //UARTprintf( "In the ISR!\n" );
+    UARTprintf( "test %X \n", Get_PC() );
 
-    UARTprintf( "test %X \n", Float_to_Int32() );
+        //
+        // "Give" the Timer_0_A_Semaphore
+        //
+        xSemaphoreGiveFromISR( Timer_0_A_Semaphore,
+        &xHigherPriorityTaskWoken );
+        //
+        // If xHigherPriorityTaskWoken was set to true,
+        // we should yield. The actual macro used here is
+        // port specific.
+        //
+        if( xHigherPriorityTaskWoken )
+        {
+            //UARTprintf( "higher priority\n" );
+            portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+        }
 
 
-    /////////////////////////////////////////////////////
 
-    //Give the Timer_0_A_Semaphore back
-    xSemaphoreGiveFromISR( Timer_0_A_Semaphore, &xHigherPriorityTaskWoken );
 }
 
 extern void Task_ProgramTrace( void* pvParameters ) {
@@ -73,22 +82,21 @@ extern void Task_ProgramTrace( void* pvParameters ) {
     TimerPrescaleSet( TIMER0_BASE, TIMER_A, 9 );
 
     TimerLoadSet( TIMER0_BASE, TIMER_A, 50000 );
-
+    TimerIntEnable( TIMER0_BASE, TIMER_TIMA_TIMEOUT );
     //Enable Timer_0_A interrupt in NVIC
     IntEnable( INT_TIMER0A );
 
     // Enable (Start) Timer
     TimerEnable( TIMER0_BASE, TIMER_A );
 
-	while ( 1 ) {
-        //
-        // Periodically call interrupt
-        //
-	    xSemaphoreTake( Timer_0_A_Semaphore, portMAX_DELAY );
+    while (1)
+    {
+        UARTprintf( "before\n" );
+        xSemaphoreTake( Timer_0_A_Semaphore, portMAX_DELAY );
+        UARTprintf( "after\n" );
+    }
 
-
-		//vTaskDelay( ( 500 * configTICK_RATE_HZ ) / 10000 );
-	}
+    UARTprintf( "end\n" );
 }
 
 

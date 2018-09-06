@@ -44,12 +44,12 @@ int main( void ) {
 	//
 	//	Create a task to report data.
 	//
-	//xTaskCreate( Task_ReportData, "ReportData", 512, NULL, 1, NULL );
+	xTaskCreate( Task_ReportData, "ReportData", 512, NULL, 1, NULL );
 
 	//
 	//	Create a task to report SysTickCount
 	//
-	//xTaskCreate( Task_ReportTime, "ReportTime", 512, NULL, 1, NULL );
+	xTaskCreate( Task_ReportTime, "ReportTime", 512, NULL, 1, NULL );
 
 	//
 	//  Create a task to program trace
