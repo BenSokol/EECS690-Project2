@@ -1,29 +1,25 @@
 ;;*****************************************************************************
 ;;
-;;	Float_to_Int32.asm
+;;	Get_Value_From_Stack.asm
 ;;
-;;		Author: 		Gary J. Minden
+;;		Author: 		Kaiser Mittenburg, Ben Sokol
 ;;		Organization:	KU/EECS/EECS 690
-;;		Date:			2017-10-06 (B71006)
+;;		Date:			2018-09-11
 ;;		Version:		1.0
 ;;
-;;		Purpose:		Copy float bits to int32_t.
+;;		Purpose:		Return the value from the stack given an offset
 ;;
 ;;		Notes:
 ;;
 ;;*****************************************************************************
-;;
 
-;;
-;;	This subroutine computes a value based on one input arguement.
-;;	The arguments is assumed to be in CPU registes R0
-;;	  (aka A1).
-;;	The result is returned in R0.
+
+
 ;;
 
 ;;	Declare sections and external references
 
-		.global		Get_PC			; Declare entry point as a global symbol
+		.global		Get_Value_From_Stack	; Declare entry point as a global symbol
 
 ;;	No constant data
 
@@ -33,8 +29,9 @@
 
 		.text								; Program section
 
-Get_PC:								; Entry point
+Get_Value_From_Stack:						; Entry point
 
-		MOV R0, PC
+		LDR R0, [SP, #32]   ; This line will load the Stack Pointer plus a given offset into R0
+							; The result is returned in R0.
 		BX			LR		; Branch to the program address in the Link Register
 		.end
