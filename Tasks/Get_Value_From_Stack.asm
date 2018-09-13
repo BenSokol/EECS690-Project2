@@ -31,7 +31,6 @@
 
 Get_Value_From_Stack:						; Entry point
 
-		LDR R0, [SP, #32]   ; This line will load the Stack Pointer plus a given offset into R0
-							; The result is returned in R0.
-		BX			LR		; Branch to the program address in the Link Register
+		LDR		R0,[SP,R0]
+		BX		LR
 		.end

@@ -33,9 +33,13 @@
 #include    "semphr.h"
 
 #define DEBUG 1
-#define PC_OFFSET 32
-#define LOAD_VALUE 50000
-#define PRE_SCALE_VALUE 23
+
+// Program Constants
+const uint32_t PC_OFFSET       = 32;
+const uint32_t LOAD_VALUE      = 50000;
+const uint32_t PRE_SCALE_VALUE = 23;
+const uint32_t BIN_DIVIDER     = 128;
+const uint32_t MAX_ADDRESS     = 1<<25;  //32KiB
 
 // 120mHz
 //  (Period 8.33 nS * K) * M  = 10mS
@@ -47,9 +51,9 @@
 //  K = 24      Pre-Scale (Should be one less than calculated)
 
 
-extern int32_t Get_Value_From_Stack( int32_t );
+extern uint32_t Get_Value_From_Stack( uint32_t );
 xSemaphoreHandle Timer_0_A_Semaphore;
-extern uint32_t data[256];
+uint32_t data[256];
 
 
 
@@ -60,24 +64,29 @@ extern void Timer_0_A_ISR()
     TimerIntClear( TIMER0_BASE, TIMER_TIMA_TIMEOUT );
 
     uint32_t pc = Get_Value_From_Stack( PC_OFFSET );
+    if( pc <= MAX_ADDRESS )
+    {
+        pc = pc / BIN_DIVIDER;
+        data[pc]++;
+    }
+
 #if DEBUG
-    UARTprintf( "test %X %u \n", pc, pc );
+    UARTprintf( "test %X \n", Get_Value_From_Stack( 32 ) );
 #endif
     //
     // "Give" the Timer_0_A_Semaphore
     //
-    xSemaphoreGiveFromISR( Timer_0_A_Semaphore,
-    &xHigherPriorityTaskWoken );
+    xSemaphoreGiveFromISR( Timer_0_A_Semaphore, &xHigherPriorityTaskWoken );
     //
     // If xHigherPriorityTaskWoken was set to true,
     // we should yield. The actual macro used here is
     // port specific.
     //
-    if( xHigherPriorityTaskWoken )
+    /*if( xHigherPriorityTaskWoken )
     {
         //UARTprintf( "higher priority\n" );
         portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
-    }
+    }*/
 }
 
 extern void Task_ProgramTrace( void* pvParameters ) {
@@ -93,9 +102,9 @@ extern void Task_ProgramTrace( void* pvParameters ) {
 
     TimerConfigure( TIMER0_BASE, TIMER_CFG_SPLIT_PAIR | TIMER_CFG_A_PERIODIC );
 
-    TimerPrescaleSet( TIMER0_BASE, TIMER_A, 23 );
+    TimerPrescaleSet( TIMER0_BASE, TIMER_A, PRE_SCALE_VALUE );
 
-    TimerLoadSet( TIMER0_BASE, TIMER_A, 50000 );
+    TimerLoadSet( TIMER0_BASE, TIMER_A, LOAD_VALUE );
     TimerIntEnable( TIMER0_BASE, TIMER_TIMA_TIMEOUT );
     //Enable Timer_0_A interrupt in NVIC
     IntEnable( INT_TIMER0A );
@@ -108,7 +117,7 @@ extern void Task_ProgramTrace( void* pvParameters ) {
         xSemaphoreTake( Timer_0_A_Semaphore, portMAX_DELAY );
     }
 
-    UARTprintf( "end\n" );
+    //UARTprintf( "end\n" );
 }
 
 
