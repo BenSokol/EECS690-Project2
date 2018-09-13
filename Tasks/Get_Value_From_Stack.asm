@@ -31,6 +31,6 @@
 
 Get_Value_From_Stack:						; Entry point
 
-		LDR		R0,[SP,R0]
+		LDR		R0,[SP,#32]
 		BX		LR
 		.end
