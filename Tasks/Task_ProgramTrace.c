@@ -18,6 +18,8 @@
 #include	"inc/hw_uart.h"
 #include    "inc/hw_sysctl.h"
 
+#include    <stdlib.h>
+
 #include	<stddef.h>
 #include	<stdbool.h>
 #include	<stdint.h>
@@ -32,14 +34,18 @@
 #include	"task.h"
 #include    "semphr.h"
 
-#define DEBUG 1
+#include    "Tasks/Task_ReportData.h"
+
+#define DEBUG 0
+
+extern volatile uint32_t xPortSysTickCount;
 
 // Program Constants
 const uint32_t PC_OFFSET       = 32;
 const uint32_t LOAD_VALUE      = 50000;
 const uint32_t PRE_SCALE_VALUE = 23;
-const uint32_t BIN_DIVIDER     = 128;
-const uint32_t MAX_ADDRESS     = 1<<25;  //32KiB
+
+const uint32_t MAX_ADDRESS     = 1<<15;  //32KiB
 
 // 120mHz
 //  (Period 8.33 nS * K) * M  = 10mS
@@ -53,26 +59,27 @@ const uint32_t MAX_ADDRESS     = 1<<25;  //32KiB
 
 extern uint32_t Get_Value_From_Stack( uint32_t );
 xSemaphoreHandle Timer_0_A_Semaphore;
-uint32_t data[256];
+uint32_t data[512];
+ReportData_Item* report_items[512];
+portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+uint32_t Current_PC = 0;
+uint32_t Queue_Control = 0;
 
+
+enum isr_status
+{
+    SHOULD_UPDATE,
+    DO_NOT_UPDATE
+} ISR_STATUS = DO_NOT_UPDATE;
 
 
 extern void Timer_0_A_ISR()
 {
-    portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-
     TimerIntClear( TIMER0_BASE, TIMER_TIMA_TIMEOUT );
+    ISR_STATUS = SHOULD_UPDATE;
+    Current_PC = Get_Value_From_Stack( PC_OFFSET );
 
-    uint32_t pc = Get_Value_From_Stack( PC_OFFSET );
-    if( pc <= MAX_ADDRESS )
-    {
-        pc = pc / BIN_DIVIDER;
-        data[pc]++;
-    }
 
-#if DEBUG
-    UARTprintf( "test %X \n", Get_Value_From_Stack( 32 ) );
-#endif
     //
     // "Give" the Timer_0_A_Semaphore
     //
@@ -112,9 +119,68 @@ extern void Task_ProgramTrace( void* pvParameters ) {
     // Enable (Start) Timer
     TimerEnable( TIMER0_BASE, TIMER_A );
 
-    while (1)
+    ReportData_SetOutputFormat( Excel_CSV );
+    uint32_t Current_Sys_Tick = xPortSysTickCount;
+    uint32_t One_Second_Delta_Sys_Tick = 10000;
+    uint32_t Stop_Sys_Tick = Current_Sys_Tick + ( 60 * One_Second_Delta_Sys_Tick );
+    UARTprintf("BEGIN\n");
+
+    uint32_t temp = 0;
+    for(temp = 0; temp < 512; temp++)
+    {
+        data[temp] = 0;
+    }
+
+    while ( xPortSysTickCount < Stop_Sys_Tick  )
     {
         xSemaphoreTake( Timer_0_A_Semaphore, portMAX_DELAY );
+        if( ISR_STATUS == SHOULD_UPDATE )
+        {
+            Queue_Control++;
+            if( Current_PC > 0 && Current_PC < MAX_ADDRESS )
+            {
+                data[Current_PC >> 6]++;
+            }
+
+
+            #if DEBUG
+                UARTprintf( "test %X %u %u \n", Current_PC, Current_PC, Current_PC >> 6 );
+                if( xPortSysTickCount >= Next_Sys_Tick )
+                {
+                    UARTprintf("NEXT\n");
+                    Next_Sys_Tick += One_Second_Delta_Sys_Tick;
+                }
+            #endif
+            ISR_STATUS = DO_NOT_UPDATE;
+        }
+    }
+    TimerDisable( TIMER0_BASE, TIMER_A );
+    UARTprintf("DONE COLLECTING DATA\n");
+    uint32_t i = 0;
+    for( i = 0; i < 512; i++ )
+    {
+    ReportData_Item* item = (ReportData_Item*)malloc( sizeof( ReportData_Item ));
+    item->TimeStamp = xPortSysTickCount;
+    item->ReportName = 42;
+    item->ReportValueType_Flg = 0x0;
+    item->ReportValue_0 = i;
+    item->ReportValue_1 = data[i];
+    item->ReportValue_2 = 0;
+    item->ReportValue_3 = 0;
+
+    report_items[i] = item;
+
+    if(i % 20 == 0)
+    {
+        UARTprintf("%u\n", i );
+    }
+    xQueueSend(  ReportData_Queue, item, 0 );
+
+    }
+
+    while(1)
+    {
+        //TRAP
     }
 
     //UARTprintf( "end\n" );
