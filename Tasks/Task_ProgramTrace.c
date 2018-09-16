@@ -16,7 +16,7 @@
 #include	"inc/hw_memmap.h"
 #include	"inc/hw_types.h"
 #include	"inc/hw_uart.h"
-#include    "inc/hw_sysctl.h"
+#include  "inc/hw_sysctl.h"
 
 #include    <stdlib.h>
 
@@ -27,14 +27,14 @@
 
 #include	"driverlib/sysctl.h"
 #include	"driverlib/pin_map.h"
-#include    "driverlib/timer.h"
+#include  "driverlib/timer.h"
 #include	"driverlib/gpio.h"
 
 #include	"FreeRTOS.h"
 #include	"task.h"
-#include    "semphr.h"
+#include  "semphr.h"
 
-#include    "Tasks/Task_ReportData.h"
+#include  "Tasks/Task_ReportData.h"
 
 #define DEBUG 0
 
@@ -63,8 +63,6 @@ uint32_t data[512];
 ReportData_Item* report_items[512];
 portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 uint32_t Current_PC = 0;
-uint32_t Queue_Control = 0;
-
 
 enum isr_status
 {
@@ -96,10 +94,8 @@ extern void Timer_0_A_ISR()
     }*/
 }
 
-extern void Task_ProgramTrace( void* pvParameters ) {
-
-	//const uint32_t	Interrupt_Frequency; //TODO
-
+extern void Task_ProgramTrace( void* pvParameters )
+{
     //Initialize Semaphore
     vSemaphoreCreateBinary( Timer_0_A_Semaphore );
 
@@ -113,20 +109,24 @@ extern void Task_ProgramTrace( void* pvParameters ) {
 
     TimerLoadSet( TIMER0_BASE, TIMER_A, LOAD_VALUE );
     TimerIntEnable( TIMER0_BASE, TIMER_TIMA_TIMEOUT );
+
     //Enable Timer_0_A interrupt in NVIC
     IntEnable( INT_TIMER0A );
 
     // Enable (Start) Timer
     TimerEnable( TIMER0_BASE, TIMER_A );
 
+    // Set data report to Excel format
     ReportData_SetOutputFormat( Excel_CSV );
+
     uint32_t Current_Sys_Tick = xPortSysTickCount;
     uint32_t One_Second_Delta_Sys_Tick = 10000;
     uint32_t Stop_Sys_Tick = Current_Sys_Tick + ( 60 * One_Second_Delta_Sys_Tick );
+
     UARTprintf("BEGIN\n");
 
     uint32_t temp = 0;
-    for(temp = 0; temp < 512; temp++)
+    for( temp = 0; temp < 512; temp++ )
     {
         data[temp] = 0;
     }
@@ -136,7 +136,6 @@ extern void Task_ProgramTrace( void* pvParameters ) {
         xSemaphoreTake( Timer_0_A_Semaphore, portMAX_DELAY );
         if( ISR_STATUS == SHOULD_UPDATE )
         {
-            Queue_Control++;
             if( Current_PC > 0 && Current_PC < MAX_ADDRESS )
             {
                 data[Current_PC >> 6]++;
@@ -155,11 +154,12 @@ extern void Task_ProgramTrace( void* pvParameters ) {
         }
     }
     TimerDisable( TIMER0_BASE, TIMER_A );
+    xSemaphoreTake( Timer_0_A_Semaphore, portMAX_DELAY );
     UARTprintf("DONE COLLECTING DATA\n");
     uint32_t i = 0;
     for( i = 0; i < 512; i++ )
     {
-    ReportData_Item* item = (ReportData_Item*)malloc( sizeof( ReportData_Item ));
+    ReportData_Item* item = (ReportData_Item*)malloc( sizeof( ReportData_Item ) );
     item->TimeStamp = xPortSysTickCount;
     item->ReportName = 42;
     item->ReportValueType_Flg = 0x0;
@@ -170,9 +170,9 @@ extern void Task_ProgramTrace( void* pvParameters ) {
 
     report_items[i] = item;
 
-    if(i % 20 == 0)
+    if( i % 20 == 0 )
     {
-        UARTprintf("%u\n", i );
+        UARTprintf( "%u\n", i );
     }
     xQueueSend(  ReportData_Queue, item, 0 );
 
@@ -185,6 +185,3 @@ extern void Task_ProgramTrace( void* pvParameters ) {
 
     //UARTprintf( "end\n" );
 }
-
-
-

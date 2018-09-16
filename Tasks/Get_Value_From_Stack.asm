@@ -13,10 +13,6 @@
 ;;
 ;;*****************************************************************************
 
-
-
-;;
-
 ;;	Declare sections and external references
 
 		.global		Get_Value_From_Stack	; Declare entry point as a global symbol
@@ -31,6 +27,6 @@
 
 Get_Value_From_Stack:						; Entry point
 
-		LDR		R0,[SP,#32]
-		BX		LR
+		LDR		R0,[SP,R0]    ; Load value from Stack Pointer given an offset, into R0
+		BX		LR            ; Branch back to Link Register
 		.end
