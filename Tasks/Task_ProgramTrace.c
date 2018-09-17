@@ -2,6 +2,7 @@
 * @Filename: Task_ProgramTrace.c
 * @Author:   Kaiser Mittenburg and Ben Sokol
 * @Email:    bensokol@me.com
+* @Email:    kaisermittenburg@gmail.com
 * @Created:  August 30th, 2018 [1:35pm]
 * @Modified: September 17th, 2018 [1:07pm]
 * @Version:  1.0.0
@@ -95,7 +96,6 @@ xSemaphoreHandle Timer_0_A_Semaphore;
 uint32_t histogram_array[512];  // Data array
 
 // Extracted from the ISR to keep stack items to a minimum
-// TODO: is this needed?
 portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 
 // The current memory address obtained from the PC
@@ -142,7 +142,7 @@ extern void Timer_0_A_ISR() {
       histogram_array[current_PC]++;
     }
     else {
-      // Current_PC is out of range. TODO: (leave this comment?) In theory should never enter this else statement
+      // Current_PC is out of range. In theory should never enter this else statement
       if (current_PC >= SIZE_OF_HISTOGRAM_ARRAY) {
         UARTprintf("ERROR: ( Current_PC / 64 ) >= %i", SIZE_OF_HISTOGRAM_ARRAY);
       }
@@ -241,7 +241,7 @@ extern void report_histogram_data() {
     item.ReportValue_2 = 0;
     item.ReportValue_3 = 0;
 
-    // this sends copy of data
+    // This sends copy of data
     xQueueSend(ReportData_Queue, &item, 0);
   }
 }
@@ -252,20 +252,3 @@ extern void zero_histogram_array() {
     histogram_array[i] = 0;
   }
 }
-
-// TODO: DELETE OLD COMMENTS
-
-// #if defined(DEBUG)
-//       UARTprintf("test %X %u %u \n", Current_PC, Current_PC, Current_PC >> 6);
-//       if (xPortSysTickCount >= Next_Sys_Tick) {
-//         UARTprintf("NEXT\n");
-//         Next_Sys_Tick += One_Second_Delta_Sys_Tick;
-//       }
-// #endif
-
-
-// #if defined(DEBUG)
-//   UARTprintf("DONE COLLECTING DATA\n");
-// #endif
-
-// Create Report_Items for the data
