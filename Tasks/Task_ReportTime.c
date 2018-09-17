@@ -45,15 +45,15 @@ extern void Task_ReportTime( void *pvParameters ) {
 	//
 	while ( 1 ) {
 
-		theTimeReport.TimeStamp = xPortSysTickCount;
-		theTimeReport.ReportName = 1;
-		theTimeReport.ReportValueType_Flg = 0x05;
-		theTimeReport.ReportValue_0 = Float_to_Int32( -55.67 );
-		theTimeReport.ReportValue_1 = 98760;
-		theTimeReport.ReportValue_2 = Float_to_Int32( 100.450 );
-		theTimeReport.ReportValue_3 = -65430;
+		//theTimeReport.TimeStamp = xPortSysTickCount;
+		//theTimeReport.ReportName = 1;
+		//theTimeReport.ReportValueType_Flg = 0x05;
+		//theTimeReport.ReportValue_0 = Float_to_Int32( -55.67 );
+		//theTimeReport.ReportValue_1 = 98760;
+		//theTimeReport.ReportValue_2 = Float_to_Int32( 100.450 );
+		//theTimeReport.ReportValue_3 = -65430;
 
-		xQueueSend(  ReportData_Queue, &theTimeReport, 0 );
+		//xQueueSend(  ReportData_Queue, &theTimeReport, 0 );
 
 		vTaskDelay( 2 * configTICK_RATE_HZ );
 	}

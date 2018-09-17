@@ -22,6 +22,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <math.h>
 
 #include "Drivers/UARTStdio_Initialization.h"
 #include "Drivers/uartstdio.h"
@@ -56,7 +57,6 @@ extern volatile long int xPortSysTickCount;
 // Assembly function to get PC from the stack
 extern uint32_t Get_Value_From_Stack(uint32_t);
 
-
 /************************************************
 * Local task constant types
 ************************************************/
@@ -82,6 +82,7 @@ const uint32_t LOAD_VALUE = 50000;
 const uint32_t PRE_SCALE_VALUE = 23;
 const uint32_t SIZE_OF_HISTOGRAM_ARRAY = 512;  // (512 << 6) == 32KiB
 const uint32_t ONE_SECOND_DELTA_SYS_TICK = 10000;
+const uint32_t REPORT_FREQUENCY_IN_SECONDS = 60;
 
 
 /************************************************
@@ -91,9 +92,7 @@ const uint32_t ONE_SECOND_DELTA_SYS_TICK = 10000;
 // The semaphore
 xSemaphoreHandle Timer_0_A_Semaphore;
 
-uint32_t histogram_array[SIZE_OF_HISTOGRAM_ARRAY];  // Data array
-
-uint32_t current_data_points_collected = 0;  // Total # Data points
+uint32_t histogram_array[512];  // Data array
 
 // Extracted from the ISR to keep stack items to a minimum
 // TODO: is this needed?
@@ -103,20 +102,21 @@ portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
 uint32_t current_PC = 0;
 
 // Status of our PC value. Controls when data is collected/reported
-ISR_STATUS_t current_ISR_Status = DO_NOT_UPDATE;
+ISR_STATUS_t current_ISR_Status = COLLECTING;
 
 uint32_t start_Sys_Tick = 0;  // Sys_Tick when ISR starts collecting
 uint32_t stop_Sys_Tick = 0;   // Sys_Tick when ISR needs to stop collecting
 
-// Counter for how many reports have been outputted
-uint32_t current_Histogram_Report = 0;
+uint32_t current_Histogram_Report = 0; // How many reports have been output
+
 
 /************************************************
 * Local task function declarations
 ************************************************/
 extern void Timer_0_A_ISR();
 extern void Task_ProgramTrace(void* pvParameters);
-
+extern void report_histogram_data();
+extern void zero_histogram_array();
 
 /************************************************
 * Local task function definitions
@@ -133,18 +133,17 @@ extern void Timer_0_A_ISR() {
 
   if (current_ISR_Status == COLLECTING) {
     // Get the value from the PC
-    Current_PC = Get_Value_From_Stack(PC_OFFSET);
-    Current_PC = Current_PC / 64;
+    current_PC = Get_Value_From_Stack(PC_OFFSET);
+    current_PC = floor( current_PC / 64.0 );
 
     // Validate Current_PC value is within size of array and store
-    if (Current_PC >= 0 && Current_PC < SIZE_OF_HISTOGRAM_ARRAY) {
+    if (current_PC < SIZE_OF_HISTOGRAM_ARRAY) {
       // Increment Bin for Current_PC
-      histogram_array[Current_PC]++;
-      current_data_points_collected++;
+      histogram_array[current_PC]++;
     }
     else {
       // Current_PC is out of range. TODO: (leave this comment?) In theory should never enter this else statement
-      if (Current_PC >= SIZE_OF_HISTOGRAM_ARRAY) {
+      if (current_PC >= SIZE_OF_HISTOGRAM_ARRAY) {
         UARTprintf("ERROR: ( Current_PC / 64 ) >= %i", SIZE_OF_HISTOGRAM_ARRAY);
       }
       else {
@@ -153,18 +152,19 @@ extern void Timer_0_A_ISR() {
       UARTprintf(" (Current_PC = %u\n");
     }
 
-    // "Give" the Timer_0_A_Semaphore
-    //xSemaphoreGiveFromISR(Timer_0_A_Semaphore, &xHigherPriorityTaskWoken);
-
-    // If xHigherPriorityTaskWoken was set to true, we should yield.
-    // The actual macro used here is port specific.
-    // if (xHigherPriorityTaskWoken) {
-    //   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
-    // }
     if (xPortSysTickCount > stop_Sys_Tick) {
       current_ISR_Status = DONE_COLLECTING;
     }
   }
+
+  // "Give" the Timer_0_A_Semaphore
+  xSemaphoreGiveFromISR(Timer_0_A_Semaphore, &xHigherPriorityTaskWoken);
+
+  // If xHigherPriorityTaskWoken was set to true, we should yield.
+  // The actual macro used here is port specific.
+  // if (xHigherPriorityTaskWoken) {
+  //   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+  // }
 }
 
 
@@ -203,28 +203,24 @@ extern void Task_ProgramTrace(void* pvParameters) {
   zero_histogram_array();
 
   // Set start time based on current systick, stop time = 1 minute later.
-  Start_Sys_Tick = xPortSysTickCount;
-  Stop_Sys_Tick = Start_Sys_Tick + (60 * ONE_SECOND_DELTA_SYS_TICK);
+  start_Sys_Tick = xPortSysTickCount;
+  stop_Sys_Tick = start_Sys_Tick + (REPORT_FREQUENCY_IN_SECONDS * ONE_SECOND_DELTA_SYS_TICK);
 
   // Add values to the histogram when appropriate
   while (1) {
     xSemaphoreTake(Timer_0_A_Semaphore, portMAX_DELAY);
     if (current_ISR_Status == DONE_COLLECTING) {
-      Current_Histogram_Report++;
+      current_Histogram_Report++;
 
-      UARTprintf("DONE COLLECTING (%u)- BEGIN OUTPUT\n", Current_Histogram_Report);
+      UARTprintf("DONE COLLECTING (%u)- BEGIN OUTPUT\n", current_Histogram_Report);
       report_histogram_data();
-      UARTprintf("DONE OUTPUTING (%u)- CONTINUE COLLECTING\n", Current_Histogram_Report);
 
       // Zero array to make sure overflow doesnt happen
-      // TODO: SHould we zero array every report? (or get larger sample set)
-      if (current_data_points_collected >= (UINT32_MAX / 2)) {
-        zero_histogram_array();
-      }
+      zero_histogram_array();
 
       // Reset time to start collecting again for 1 minute
-      Start_Sys_Tick = xPortSysTickCount;
-      Stop_Sys_Tick = Start_Sys_Tick + (60 * ONE_SECOND_DELTA_SYS_TICK);
+      start_Sys_Tick = xPortSysTickCount;
+      stop_Sys_Tick = start_Sys_Tick + (60 * ONE_SECOND_DELTA_SYS_TICK);
 
       // Set flag current_ISR_Status to start collecting again
       current_ISR_Status = COLLECTING;
@@ -245,14 +241,8 @@ extern void report_histogram_data() {
     item.ReportValue_2 = 0;
     item.ReportValue_3 = 0;
 
-    // #if defined(DEBUG)
-    //     if (i % 20 == 0) {
-    //       UARTprintf("%u\n", i);
-    //     }
-    // #endif
-
     // this sends copy of data
-    xQueueSend(ReportData_Queue, item, 0);
+    xQueueSend(ReportData_Queue, &item, 0);
   }
 }
 
@@ -273,10 +263,6 @@ extern void zero_histogram_array() {
 //       }
 // #endif
 
-
-// Disable the timer and take the semaphore
-// TimerDisable(TIMER0_BASE, TIMER_A);
-// xSemaphoreTake(Timer_0_A_Semaphore, portMAX_DELAY);
 
 // #if defined(DEBUG)
 //   UARTprintf("DONE COLLECTING DATA\n");

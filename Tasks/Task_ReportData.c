@@ -87,7 +87,7 @@ extern void Task_ReportData( void *pvParameters ) {
 	//
 	//	Define ReportData_Queue
 	//
-	ReportData_Queue = xQueueCreate( 10, sizeof( ReportData_Item ) );
+	ReportData_Queue = xQueueCreate( 1024, sizeof( ReportData_Item ) );
 
 	UARTprintf( ">>>>ReportData: Queue Handle: %p\n", ReportData_Queue );
 
