@@ -40,7 +40,7 @@ int main( void ) {
 	//	Create a task to blink LED, PortN_1
 	//
 	xTaskCreate( Task_Blink_LED_PortN_1, "Blinky", 32, NULL, 1, NULL );
-	
+
 	//
 	//	Create a task to report data.
 	//
@@ -61,9 +61,9 @@ int main( void ) {
 	//
 	//	Start FreeRTOS Task Scheduler
 	//
-	//int* ptr = NULL;
+
 	vTaskStartScheduler( );
-	//Timer_0_A_ISR( ptr);
+	
 	while ( 1 ) {
 
 	}
