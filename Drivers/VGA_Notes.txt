@@ -1,0 +1,26 @@
+//*************
+//
+//	Second, the base addresses of each peripheral.
+//
+#define VGA_SClk_Base		GPIO_PORTQ_BASE
+#define	VGA_MOSI_Base		GPIO_PORTQ_BASE
+#define	VGA_Select_Base		GPIO_PORTP_BASE
+#define	VGA_DataCmd_Base	GPIO_PORTP_BASE
+#define	VGA_ON_Base			GPIO_PORTG_BASE
+#define	VGA_Reset_Base		GPIO_PORTK_BASE
+
+//
+//	Third, the pins for each signal.
+//
+#define VGA_SClk_Pin		GPIO_PIN_0
+#define	VGA_MOSI_Pin		GPIO_PIN_2
+#define	VGA_Select_Pin		GPIO_PIN_3
+#define	VGA_DataCmd_Pin		GPIO_PIN_4
+#define	VGA_ON_Pin			GPIO_PIN_1
+#define	VGA_Reset_Pin		GPIO_PIN_6
+
+//
+// Definition of SSI base address to be used for SPI communication.
+//
+#define	VGA_SSI_Perip		SYSCTL_PERIPH_SSI3
+#define	VGA_SSI_BASE		SSI3_BASE
