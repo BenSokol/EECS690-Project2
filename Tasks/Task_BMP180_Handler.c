@@ -1,5 +1,5 @@
 /**
-* @Filename: Task_ProgramTrace.c
+* @Filename: Task_BMP180_Handler.c
 * @Author:   Kaiser Mittenburg and Ben Sokol
 * @Email:    bensokol@me.com
 * @Email:    kaisermittenburg@gmail.com
@@ -18,21 +18,20 @@
 #include "inc/hw_types.h"
 #include "inc/hw_uart.h"
 
+#include <math.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <math.h>
 
 #include "Drivers/I2C7_Handler.h"
 #include "Drivers/UARTStdio_Initialization.h"
 #include "Drivers/uartstdio.h"
 
-#include "sensorlib/i2cm_drv.h"
-#include "sensorlib/hw_bmp180.h"
 #include "sensorlib/bmp180.h"
-
+#include "sensorlib/hw_bmp180.h"
+#include "sensorlib/i2cm_drv.h"
 
 #include "driverlib/gpio.h"
 #include "driverlib/interrupt.h"
@@ -75,7 +74,6 @@ extern uint32_t g_ulSystemClock;
 ************************************************/
 
 
-
 /************************************************
 * Local task constant types
 ************************************************/
@@ -90,7 +88,6 @@ typedef enum ISR_STATUS_t {
 ************************************************/
 
 // Program Constants
-
 
 
 /************************************************
@@ -117,8 +114,6 @@ uint32_t BMP180_Callbacks_Nbr = 0;
 xSemaphoreHandle BMP180_Semaphore;
 
 
-
-
 uint32_t histogram_array[512];  // Data array
 
 // Status of our PC value. Controls when data is collected/reported
@@ -128,13 +123,12 @@ uint32_t BMP_start_Sys_Tick = 0;  // Sys_Tick when ISR starts collecting
 uint32_t BMP_stop_Sys_Tick = 0;   // Sys_Tick when ISR needs to stop collecting
 
 
-
 /************************************************
 * Local task function declarations
 ************************************************/
-extern void Timer_0_A_ISR();
-extern void Task_ProgramTrace(void* pvParameters);
-extern void report_histogram_data();
+extern void BMP180SimpleCallback(void* pvData, uint_fast8_t ui8Status);
+extern void Task_BMP180_Handler(void* pvParameters);
+extern void BMP_report_data();
 extern void zero_histogram_array();
 
 /************************************************
@@ -150,24 +144,24 @@ extern void zero_histogram_array();
 //
 // The function that is provided by this example as a callback when BMP180
 // transactions have completed.
-void BMP180SimpleCallback( void *pvData, uint_fast8_t ui8Status ) {
-portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-BMP180_Callbacks_Nbr++;
-//
-// See if an error occurred.
-if(ui8Status != I2CM_STATUS_SUCCESS) {
-//
-// An error occurred, so handle it here if required.
-//
-UARTprintf( ">>>>BMP180 Error: %02X\n", ui8Status );
-}
-//
-// Indicate that the I2C transaction has completed.
-BMP180SimpleDone = true;
-//
-// "Give" the BMP180_Semaphore
-xSemaphoreGiveFromISR( BMP180_Semaphore, &xHigherPriorityTaskWoken );
-portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+void BMP180SimpleCallback(void* pvData, uint_fast8_t ui8Status) {
+  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+  BMP180_Callbacks_Nbr++;
+  //
+  // See if an error occurred.
+  if (ui8Status != I2CM_STATUS_SUCCESS) {
+    //
+    // An error occurred, so handle it here if required.
+    //
+    UARTprintf(">>>>BMP180 Error: %02X\n", ui8Status);
+  }
+  //
+  // Indicate that the I2C transaction has completed.
+  BMP180SimpleDone = true;
+  //
+  // "Give" the BMP180_Semaphore
+  xSemaphoreGiveFromISR(BMP180_Semaphore, &xHigherPriorityTaskWoken);
+  portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
 
@@ -181,48 +175,41 @@ portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
 //
 // The simple BMP180 master driver example.
 //
-extern void Task_BMP180_Handler( void ) {
-float fTemperature, fPressure;
-//
-// Initialize I2C7
-//
-I2C7_Initialization();
-//
-// Initialize BMP180_Semaphore
-//
-vSemaphoreCreateBinary( BMP180_Semaphore );
-//
-// Initialize the BMP180.
-//
-BMP180SimpleDone = false;
-BMP180Status = BMP180Init( &sBMP180, I2C7_Instance_Ref, 0x77,
-BMP180SimpleCallback, 0 ) ;
-xSemaphoreTake( BMP180_Semaphore, portMAX_DELAY );
-UARTprintf( ">>>>BMP180: Initialized!\n" );
+extern void Task_BMP180_Handler(void* pvParameters) {
+  float fTemperature = 0.0;
+  float fPressure = 0.0;
 
-//
-// Loop forever reading data from the BMP180. Typically, this process
-// would be done in the background, but for the purposes of this example,
-// it is shown in an infinite loop.
-while ( 1 ) {
- //
- // Request a reading from the BMP180.
- //
- BMP180DataRead( &sBMP180, BMP180SimpleCallback, 0 );
- xSemaphoreTake( BMP180_Semaphore, portMAX_DELAY );
- UARTprintf( ">>>>BMP180: Data Read!\n" );
- //
- // Get the new pressure and temperature reading.
- //
- BMP180DataPressureGetFloat( &sBMP180, &fPressure );
- BMP180DataTemperatureGetFloat( &sBMP180, &fTemperature );
- UARTprintf( ">>BMPData: Temperature: %6.2f; Pressure: %6.2f;\n",
- fTemperature, fPressure );
- //
- // Do something with the new pressure and temperature readings.
- //
- vTaskDelay( (SysTickFrequency * 1000) / 1000 );
- }
+  // Initialize I2C7
+  I2C7_Initialization();
+
+  // Initialize BMP180_Semaphore
+  vSemaphoreCreateBinary(BMP180_Semaphore);
+
+  // Initialize the BMP180.
+  BMP180SimpleDone = false;
+  BMP180Status = BMP180Init(&sBMP180, I2C7_Instance_Ref, 0x77, BMP180SimpleCallback, 0);
+  xSemaphoreTake(BMP180_Semaphore, portMAX_DELAY);
+  UARTprintf(">>>>BMP180: Initialized!\n");
+
+  //
+  // Loop forever reading data from the BMP180. Typically, this process
+  // would be done in the background, but for the purposes of this example,
+  // it is shown in an infinite loop.
+  while (1) {
+
+    // Request a reading from the BMP180.
+    BMP180DataRead(&sBMP180, BMP180SimpleCallback, 0);
+    xSemaphoreTake(BMP180_Semaphore, portMAX_DELAY);
+    UARTprintf(">>>>BMP180: Data Read!\n");
+
+    // Get the new pressure and temperature reading.
+    BMP180DataPressureGetFloat(&sBMP180, &fPressure);
+    BMP180DataTemperatureGetFloat(&sBMP180, &fTemperature);
+    UARTprintf(">>BMPData: Temperature: %6.2f; Pressure: %6.2f;\n", fTemperature, fPressure);
+
+    // Do something with the new pressure and temperature readings.
+    vTaskDelay((SysTickFrequency * 1000) / 1000);
+  }
 }
 
 
