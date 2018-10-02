@@ -31,12 +31,12 @@ extern void Task_ReportTime( void *pvParameters );
 extern void Task_ReportData( void *pvParameters );
 extern void Task_ProgramTrace( void* pvParameters );
 extern void Timer_0_A_ISR( void *pvParameters );
+extern void Task_BMP180_Handler( void );
 
 int main( void ) {
 
 	Processor_Initialization();
 	UARTStdio_Initialization();
-	I2C7_Initialization();
 
 	//
 	//	Create a task to blink LED, PortN_1
@@ -57,6 +57,11 @@ int main( void ) {
 	//  Create a task to program trace
 	//
 	xTaskCreate( Task_ProgramTrace, "Trace", 512, NULL, 1, NULL );
+
+	//
+    //  Create a task to program trace
+    //
+    xTaskCreate( Task_BMP180_Handler, "Pressure", 512, NULL, 1, NULL );
 
 	UARTprintf( "FreeRTOS Starting!\n" );
 
