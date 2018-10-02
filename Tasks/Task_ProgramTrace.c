@@ -242,7 +242,7 @@ extern void report_histogram_data() {
     item.ReportValue_3 = 0;
 
     // This sends copy of data
-    xQueueSend(ReportData_Queue, &item, 0);
+    //xQueueSend(ReportData_Queue, &item, 0);
   }
 }
 

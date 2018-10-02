@@ -16,6 +16,7 @@
 #include	"driverlib/pin_map.h"
 #include	"driverlib/gpio.h"
 
+#include    "Drivers/I2C7_Handler.h"
 #include	"Drivers/Processor_Initialization.h"
 #include	"Drivers/UARTStdio_Initialization.h"
 #include	"Drivers/uartstdio.h"
@@ -35,6 +36,7 @@ int main( void ) {
 
 	Processor_Initialization();
 	UARTStdio_Initialization();
+	I2C7_Initialization();
 
 	//
 	//	Create a task to blink LED, PortN_1
