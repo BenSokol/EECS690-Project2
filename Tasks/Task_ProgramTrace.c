@@ -41,7 +41,7 @@
 #include "task.h"
 
 #define DEBUG
-
+#define ENABLE_OUTPUT FALSE
 
 /************************************************
 * External variables
@@ -142,14 +142,15 @@ extern void Timer_0_A_ISR() {
       histogram_array[current_PC]++;
     }
     else {
-      // Current_PC is out of range. In theory should never enter this else statement
-      if (current_PC >= SIZE_OF_HISTOGRAM_ARRAY) {
-        UARTprintf("ERROR: ( Current_PC / 64 ) >= %i", SIZE_OF_HISTOGRAM_ARRAY);
-      }
-      else {
-        UARTprintf("ERROR: ( Current_PC / 64 ) < 0");
-      }
-      UARTprintf(" (Current_PC = %u\n");
+      #if ENABLE_OUTPUT
+          // Current_PC is out of range. In theory should never enter this else statement
+            UARTprintf("ERROR: ( Current_PC / 64 ) >= %i", SIZE_OF_HISTOGRAM_ARRAY);
+          }
+          else {
+            UARTprintf("ERROR: ( Current_PC / 64 ) < 0");
+          }
+          UARTprintf(" (Current_PC = %u\n");
+      #endif
     }
 
     if (xPortSysTickCount > stop_Sys_Tick) {
@@ -212,7 +213,9 @@ extern void Task_ProgramTrace(void* pvParameters) {
     if (current_ISR_Status == DONE_COLLECTING) {
       current_Histogram_Report++;
 
-      UARTprintf("DONE COLLECTING (%u)- BEGIN OUTPUT\n", current_Histogram_Report);
+      #if ENABLE_OUTPUT
+        UARTprintf("DONE COLLECTING (%u)- BEGIN OUTPUT\n", current_Histogram_Report);
+      #endif
       report_histogram_data();
 
       // Zero array to make sure overflow doesnt happen
@@ -242,7 +245,9 @@ extern void report_histogram_data() {
     item.ReportValue_3 = 0;
 
     // This sends copy of data
-    //xQueueSend(ReportData_Queue, &item, 0);
+    #if ENABLE_OUTPUT
+      xQueueSend(ReportData_Queue, &item, 0);
+    #endif
   }
 }
 

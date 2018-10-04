@@ -32,6 +32,7 @@ extern void Task_ReportData(void *pvParameters);
 extern void Task_ProgramTrace(void *pvParameters);
 extern void Timer_0_A_ISR(void *pvParameters);
 extern void Task_BMP180_Handler(void *pvParameters);
+extern void Task_MPU9150_Handler(void *pvParameters);
 
 int main(void) {
 
@@ -62,6 +63,11 @@ int main(void) {
   //  Create a task to program trace
   //
   xTaskCreate(Task_BMP180_Handler, "Pressure", 512, NULL, 1, NULL);
+
+  //
+  //  Create a task to program trace
+  //
+  xTaskCreate(Task_MPU9150_Handler, "Accelerometer", 512, NULL, 1, NULL);
 
   UARTprintf("FreeRTOS Starting!\n");
 

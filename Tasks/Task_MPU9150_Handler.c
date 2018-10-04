@@ -1,13 +1,13 @@
 /**
-* @Filename: Task_BMP180_Handler.c
+* @Filename: Task_MPU9150_Handler.c
 * @Author:   Kaiser Mittenburg and Ben Sokol
 * @Email:    bensokol@me.com
 * @Email:    kaisermittenburg@gmail.com
-* @Created:  October 2nd, 2018
+* @Created:  October 4nd, 2018
 * @Modified:
 * @Version:  1.0.0
 *
-* @Description: Periodically read and report temperature and pressure
+* @Description: Periodically read and report accelerometer readings
 *
 * Copyright (C) 2018 by Kaiser Mittenburg and Ben Sokol. All Rights Reserved.
 */
@@ -30,9 +30,10 @@
 #include "Drivers/UARTStdio_Initialization.h"
 #include "Drivers/uartstdio.h"
 
-#include "sensorlib/bmp180.h"
-#include "sensorlib/hw_bmp180.h"
-#include "sensorlib/i2cm_drv.h"
+#include "sensorlib/hw_ak8975.h"
+#include "sensorlib/ak8975.h"
+#include "sensorlib/hw_mpu9150.h"
+#include "sensorlib/mpu9150.h"
 
 #include "driverlib/gpio.h"
 #include "driverlib/interrupt.h"
@@ -78,10 +79,6 @@ extern uint32_t g_ulSystemClock;
 /************************************************
 * Local task constant types
 ************************************************/
-typedef enum ISR_STATUS_t {
-  COLLECTING,      // Should ISR collect data
-  DONE_COLLECTING  // ISR is done collecting data, reporting
-} ISR_STATUS_t;
 
 
 /************************************************
@@ -96,40 +93,34 @@ typedef enum ISR_STATUS_t {
 ************************************************/
 
 //
-// BMP180 variables
+// Acc variables
 // The BMP180 control block
 //
-tBMP180 sBMP180;
-uint32_t BMP180Status = 0;
+tMPU9150 sMPU9150;
+uint32_t MPU9150Status = 0;
 //
 // A boolean that is set when an I2C transaction is completed.
 //
-volatile bool BMP180SimpleDone = false;
+volatile bool MPU9150SimpleDone = false;
 //
 // The number of BMP180 callbacks taken.
 //
-uint32_t BMP180_Callbacks_Nbr = 0;
+uint32_t MPU9150_Callbacks_Nbr = 0;
 //
 // Semaphore to indicate completion of an I/O operation
 //
-xSemaphoreHandle BMP180_Semaphore;
+xSemaphoreHandle MPU9150_Semaphore;
 
 
 uint32_t histogram_array[512];  // Data array
-
-// Status of our PC value. Controls when data is collected/reported
-ISR_STATUS_t BMP_current_ISR_Status = COLLECTING;
-
-uint32_t BMP_start_Sys_Tick = 0;  // Sys_Tick when ISR starts collecting
-uint32_t BMP_stop_Sys_Tick = 0;   // Sys_Tick when ISR needs to stop collecting
 
 
 /************************************************
 * Local task function declarations
 ************************************************/
-extern void BMP180SimpleCallback(void* pvData, uint_fast8_t ui8Status);
-extern void Task_BMP180_Handler(void* pvParameters);
-extern void BMP_report_data();
+extern void SimpleCallback(void* pvData, uint_fast8_t ui8Status);
+extern void Task_MPU9150_Handler(void* pvParameters);
+extern void MPU_report_data();
 extern void zero_histogram_array();
 
 /************************************************
@@ -145,23 +136,23 @@ extern void zero_histogram_array();
 //
 // The function that is provided by this example as a callback when BMP180
 // transactions have completed.
-void BMP180SimpleCallback(void* pvData, uint_fast8_t ui8Status) {
+void MPU9150SimpleCallback(void* pvData, uint_fast8_t ui8Status) {
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-  BMP180_Callbacks_Nbr++;
+  MPU9150_Callbacks_Nbr++;
   //
   // See if an error occurred.
   if (ui8Status != I2CM_STATUS_SUCCESS) {
     //
     // An error occurred, so handle it here if required.
     //
-    UARTprintf(">>>>BMP180 Error: %02X\n", ui8Status);
+    UARTprintf(">>>>MPU9150 Error: %02X\n", ui8Status);
   }
   //
   // Indicate that the I2C transaction has completed.
-  BMP180SimpleDone = true;
+  MPU9150SimpleDone = true;
   //
-  // "Give" the BMP180_Semaphore
-  xSemaphoreGiveFromISR(BMP180_Semaphore, &xHigherPriorityTaskWoken);
+  // "Give" the MPU9150_Semaphore
+  xSemaphoreGiveFromISR(MPU9150_Semaphore, &xHigherPriorityTaskWoken);
   portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
 }
 
@@ -174,44 +165,74 @@ void BMP180SimpleCallback(void* pvData, uint_fast8_t ui8Status) {
 *************************************************************************/
 //================================================================
 //
-// The simple BMP180 master driver example.
+// The simple MPU9150 master driver example.
 //
-extern void Task_BMP180_Handler(void* pvParameters) {
+extern void Task_MPU9150_Handler(void* pvParameters) {
   // Initialize I2C7
   I2C7_Initialization();
 
-  // Initialize BMP180_Semaphore
-  vSemaphoreCreateBinary(BMP180_Semaphore);
+  // Initialize Acc_Semaphore
+  vSemaphoreCreateBinary(MPU9150_Semaphore);
 
-  // Initialize the BMP180.
-  BMP180SimpleDone = false;
-  BMP180Status = BMP180Init(&sBMP180, I2C7_Instance_Ref, 0x77, BMP180SimpleCallback, 0);
-  xSemaphoreTake(BMP180_Semaphore, portMAX_DELAY);
-  UARTprintf(">>>>BMP180: Initialized!\n");
+  // Initialize the Acc.
+  MPU9150SimpleDone = false;
+  MPU9150Status = MPU9150Init(&sMPU9150, I2C7_Instance_Ref, 0x68, MPU9150SimpleCallback, 0);
+
+  xSemaphoreTake(MPU9150_Semaphore, portMAX_DELAY);
+  UARTprintf(">>>>MPU9150: Initialized!\n");
 
   //
-  // Loop forever reading data from the BMP180. Typically, this process
+  // Loop forever reading data from the MPU9150. Typically, this process
   // would be done in the background, but for the purposes of this example,
   // it is shown in an infinite loop.
   while (1) {
-    float fTemperature = 0.0;
-    float fPressure = 0.0;
-    char fTemperatureStr[50];
-    char fPressureStr[50];
+    float fAccelX = 0.0;
+    float fAccelY = 0.0;
+    float fAccelZ = 0.0;
+    float fGyroX = 0.0;
+    float fGyroY = 0.0;
+    float fGyroZ = 0.0;
 
-    // Request a reading from the BMP180.
-    BMP180DataRead(&sBMP180, BMP180SimpleCallback, 0);
-    xSemaphoreTake(BMP180_Semaphore, portMAX_DELAY);
-    //UARTprintf(">>>>BMP180: Data Read!\n");
+
+    char fAccelX_str[50];
+    char fAccelY_str[50];
+    char fAccelZ_str[50];
+    char fGyroX_str[50];
+    char fGyroY_str[50];
+    char fGyroZ_str[50];
+
+    // Request a reading from the Acc.
+    MPU9150DataRead(&sMPU9150, MPU9150SimpleCallback, 0);
+    xSemaphoreTake(MPU9150_Semaphore, portMAX_DELAY);
+    //UARTprintf(">>>>MPU9150: Data Read!\n");
 
     // Get the new pressure and temperature reading.
-    BMP180DataPressureGetFloat(&sBMP180, &fPressure);
-    BMP180DataTemperatureGetFloat(&sBMP180, &fTemperature);
+    MPU9150DataAccelGetFloat(&sMPU9150, &fAccelX, &fAccelY, &fAccelZ);
+    MPU9150DataGyroGetFloat(&sMPU9150, &fGyroX, &fGyroY, &fGyroZ);
+
+    //ReportData_Item itemAccel;
+    //itemAccel.TimeStamp = xPortSysTickCount;
+    //itemAccel.ReportName = 91501;
+    //itemAccel.ReportValueType_Flg = 0b0111;
+    //itemAccel.ReportValue_0 = Float_to_Int32(fAccelX);
+    //itemAccel.ReportValue_1 = Float_to_Int32(fAccelY);
+    //itemAccel.ReportValue_2 = Float_to_Int32(fAccelZ);
+    //itemAccel.ReportValue_3 = 0;
+
+    // This sends copy of data
+    //xQueueSend(ReportData_Queue, &itemAccel, 0);
+
 
     // Convert floats to strings because UARTprintf is unable to print float
-    sprintf(fPressureStr, "%f", fPressure);
-    sprintf(fTemperatureStr, "%f", fTemperature);
-    //UARTprintf(">>BMPData: Temperature: %s; Pressure: %s;\n", fTemperatureStr, fPressureStr );
+    //sprintf(fAccelX_str, "%f", fAccelX);
+    //sprintf(fAccelY_str, "%f", fAccelY);
+    //sprintf(fAccelZ_str, "%f", fAccelZ);
+    //sprintf(fGyroX_str, "%f", fGyroX);
+    //sprintf(fGyroY_str, "%f", fGyroY);
+    //sprintf(fGyroZ_str, "%f", fGyroZ);
+
+    //UARTprintf(">>MPU9150Data: Accelerometer: X=%s; Y=%s; Z=%s\n", fAccelX_str, fAccelY_str, fAccelZ_str);
+    //UARTprintf(">>MPU9150Data: Gyroscope: X=%s; Y=%s; Z=%s\n", fGyroX_str, fGyroY_str, fGyroZ_str);
 
     // Do something with the new pressure and temperature readings.
     vTaskDelay((SysTickFrequency * 1000) / 1000);
@@ -219,7 +240,7 @@ extern void Task_BMP180_Handler(void* pvParameters) {
 }
 
 
-extern void BMP_report_data() {
+extern void MPU_report_data() {
   uint32_t i = 0;
   for (i = 0; i < 512; ++i) {
     //ReportData_Item item;
@@ -236,7 +257,7 @@ extern void BMP_report_data() {
   }
 }
 
-extern void BMP_zero_data() {
+extern void MPU_zero_data() {
   uint32_t i = 0;
   for (i = 0; i < 512; ++i) {
     //histogram_array[i] = 0;
