@@ -23,6 +23,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "Drivers/I2C7_Handler.h"
@@ -47,7 +48,7 @@
 
 #define DEBUG
 
-
+extern int32_t Float_to_Int32( float theFloat );
 /************************************************
 * External variables
 ************************************************/
@@ -176,9 +177,6 @@ void BMP180SimpleCallback(void* pvData, uint_fast8_t ui8Status) {
 // The simple BMP180 master driver example.
 //
 extern void Task_BMP180_Handler(void* pvParameters) {
-  float fTemperature = 0.0;
-  float fPressure = 0.0;
-
   // Initialize I2C7
   I2C7_Initialization();
 
@@ -196,6 +194,10 @@ extern void Task_BMP180_Handler(void* pvParameters) {
   // would be done in the background, but for the purposes of this example,
   // it is shown in an infinite loop.
   while (1) {
+    float fTemperature = 0.0;
+    float fPressure = 0.0;
+    char fTemperatureStr[50];
+    char fPressureStr[50];
 
     // Request a reading from the BMP180.
     BMP180DataRead(&sBMP180, BMP180SimpleCallback, 0);
@@ -205,7 +207,11 @@ extern void Task_BMP180_Handler(void* pvParameters) {
     // Get the new pressure and temperature reading.
     BMP180DataPressureGetFloat(&sBMP180, &fPressure);
     BMP180DataTemperatureGetFloat(&sBMP180, &fTemperature);
-    UARTprintf(">>BMPData: Temperature: %6.2f; Pressure: %6.2f;\n", fTemperature, fPressure);
+
+    // Convert floats to strings because UARTprintf is unable to print float
+    sprintf(fPressureStr, "%f", fPressure);
+    sprintf(fTemperatureStr, "%f", fTemperature);
+    UARTprintf(">>BMPData: Temperature: %s; Pressure: %s;\n", fTemperatureStr, fPressureStr );
 
     // Do something with the new pressure and temperature readings.
     vTaskDelay((SysTickFrequency * 1000) / 1000);
