@@ -40,6 +40,8 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
 
+#include "Tasks/Task_ReportData.h"
+
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "task.h"
@@ -122,6 +124,9 @@ void BMP180SimpleCallback(void* pvData, uint_fast8_t ui8Status) {
 * Return:        void
 *************************************************************************/
 extern void Task_BMP180_Handler(void* pvParameters) {
+  // Initialize UART
+  UARTStdio_Initialization();
+
   // Initialize I2C7
   I2C7_Initialization();
 
@@ -158,6 +163,6 @@ extern void Task_BMP180_Handler(void* pvParameters) {
     UARTprintf(">>BMP180  Data: Pressure:    %s\n", fPressureStr);
 
     // Delay
-    vTaskDelay((SysTickFrequency * 1000) / 1000);
+    vTaskDelay((SysTickFrequency * 1) / 1000);
   }
 }

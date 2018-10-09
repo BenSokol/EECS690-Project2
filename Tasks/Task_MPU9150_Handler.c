@@ -42,6 +42,8 @@
 #include "driverlib/sysctl.h"
 #include "driverlib/timer.h"
 
+#include "Tasks/Task_ReportData.h"
+
 #include "FreeRTOS.h"
 #include "semphr.h"
 #include "task.h"
@@ -124,6 +126,9 @@ void MPU9150SimpleCallback(void* pvData, uint_fast8_t ui8Status) {
 * Return:        void
 *************************************************************************/
 extern void Task_MPU9150_Handler(void* pvParameters) {
+  // Initialize UART
+  UARTStdio_Initialization();
+
   // Initialize I2C7
   I2C7_Initialization();
 
@@ -160,17 +165,41 @@ extern void Task_MPU9150_Handler(void* pvParameters) {
     MPU9150DataAccelGetFloat(&sMPU9150, &fAccelX, &fAccelY, &fAccelZ);
     MPU9150DataGyroGetFloat(&sMPU9150, &fGyroX, &fGyroY, &fGyroZ);
 
+    // Create ReportData_Item for Acceleration
+    ReportData_Item itemAccel;
+    itemAccel.TimeStamp = xPortSysTickCount;
+    itemAccel.ReportName = 91501;
+    itemAccel.ReportValueType_Flg = 0b0111;
+    itemAccel.ReportValue_0 = Float_To_Int32(fAccelX);
+    itemAccel.ReportValue_1 = Float_To_Int32(fAccelY);
+    itemAccel.ReportValue_2 = Float_To_Int32(fAccelZ);
+    itemAccel.ReportValue_3 = 0;
+
+    // Create ReportData_Item for Gyroscope
+    ReportData_Item itemGyro;
+    itemGyro.TimeStamp = xPortSysTickCount;
+    itemGyro.ReportName = 91502;
+    itemGyro.ReportValueType_Flg = 0b0111;
+    itemGyro.ReportValue_0 = Float_To_Int32(fGyroX);
+    itemGyro.ReportValue_1 = Float_To_Int32(fGyroY);
+    itemGyro.ReportValue_2 = Float_To_Int32(fGyroZ);
+    itemGyro.ReportValue_3 = 0;
+
+    // Send ReportData_Items to queue to print
+    xQueueSend(ReportData_Queue, &itemAccel, 0);
+    xQueueSend(ReportData_Queue, &itemGyro, 0);
+
     // Convert float to string because UARTprintf is unable to print float
-    sprintf(fAccelX_str, "%6.2f", fAccelX);
-    sprintf(fAccelY_str, "%6.2f", fAccelY);
-    sprintf(fAccelZ_str, "%6.2f", fAccelZ);
-    sprintf(fGyroX_str, "%6.2f", fGyroX);
-    sprintf(fGyroY_str, "%6.2f", fGyroY);
-    sprintf(fGyroZ_str, "%6.2f", fGyroZ);
+    //sprintf(fAccelX_str, "%6.2f", fAccelX);
+    //sprintf(fAccelY_str, "%6.2f", fAccelY);
+    //sprintf(fAccelZ_str, "%6.2f", fAccelZ);
+    //sprintf(fGyroX_str, "%6.2f", fGyroX);
+    //sprintf(fGyroY_str, "%6.2f", fGyroY);
+    //sprintf(fGyroZ_str, "%6.2f", fGyroZ);
 
     // Report data via UARTprintf
-    UARTprintf(">>MPU9150 Data: Accelerometer: {%s, %s, %s}\n", fAccelX_str, fAccelY_str, fAccelZ_str);
-    UARTprintf(">>MPU9150 Data: Gyroscope:     {%s, %s, %s}\n", fGyroX_str, fGyroY_str, fGyroZ_str);
+    //UARTprintf(">>MPU9150 Data: Accelerometer: {%s, %s, %s}\n", fAccelX_str, fAccelY_str, fAccelZ_str);
+    //UARTprintf(">>MPU9150 Data: Gyroscope:     {%s, %s, %s}\n", fGyroX_str, fGyroY_str, fGyroZ_str);
 
     // Delay
     vTaskDelay((SysTickFrequency * 1000) / 1000);
