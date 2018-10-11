@@ -28,7 +28,7 @@ extern int32_t Float_to_Int32( float theFloat );
 
 extern void Task_ReportTime( void *pvParameters ) {
 
-	ReportData_Item		theTimeReport;
+	//ReportData_Item		theTimeReport;
 
 	//
 	//	No set-up necessary
@@ -50,7 +50,7 @@ extern void Task_ReportTime( void *pvParameters ) {
 		//theTimeReport.ReportValueType_Flg = 0x05;
 		//theTimeReport.ReportValue_0 = Float_to_Int32( -55.67 );
 		//theTimeReport.ReportValue_1 = 98760;
-		//theTimeReport.ReportValue_2 = Float_to_Int32( 100.450 );
+		//theTimeReport.ReportValue_2 = Float_to_Int32( 12345678.12345678 );
 		//theTimeReport.ReportValue_3 = -65430;
 
 		//xQueueSend(  ReportData_Queue, &theTimeReport, 0 );

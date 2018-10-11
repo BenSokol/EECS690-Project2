@@ -52,7 +52,7 @@
 /************************************************
 * External variables
 ************************************************/
-// Access to current Sys Tick
+// Access to current SysTick
 extern volatile long int xPortSysTickCount;
 
 // SysTickClock Frequency
@@ -150,13 +150,6 @@ extern void Task_MPU9150_Handler(void* pvParameters) {
     float fGyroY = 0.0;
     float fGyroZ = 0.0;
 
-    char fAccelX_str[15];
-    char fAccelY_str[15];
-    char fAccelZ_str[15];
-    char fGyroX_str[15];
-    char fGyroY_str[15];
-    char fGyroZ_str[15];
-
     // Request a reading from the MPU9150.
     MPU9150DataRead(&sMPU9150, MPU9150SimpleCallback, 0);
     xSemaphoreTake(MPU9150_Semaphore, portMAX_DELAY);
@@ -168,38 +161,26 @@ extern void Task_MPU9150_Handler(void* pvParameters) {
     // Create ReportData_Item for Acceleration
     ReportData_Item itemAccel;
     itemAccel.TimeStamp = xPortSysTickCount;
-    itemAccel.ReportName = 91501;
+    itemAccel.ReportName = 0004;
     itemAccel.ReportValueType_Flg = 0b0111;
-    itemAccel.ReportValue_0 = Float_To_Int32(fAccelX);
-    itemAccel.ReportValue_1 = Float_To_Int32(fAccelY);
-    itemAccel.ReportValue_2 = Float_To_Int32(fAccelZ);
+    itemAccel.ReportValue_0 = *(int32_t*)&fAccelX;
+    itemAccel.ReportValue_1 = *(int32_t*)&fAccelY;
+    itemAccel.ReportValue_2 = *(int32_t*)&fAccelZ;
     itemAccel.ReportValue_3 = 0;
 
     // Create ReportData_Item for Gyroscope
     ReportData_Item itemGyro;
     itemGyro.TimeStamp = xPortSysTickCount;
-    itemGyro.ReportName = 91502;
+    itemGyro.ReportName = 0005;
     itemGyro.ReportValueType_Flg = 0b0111;
-    itemGyro.ReportValue_0 = Float_To_Int32(fGyroX);
-    itemGyro.ReportValue_1 = Float_To_Int32(fGyroY);
-    itemGyro.ReportValue_2 = Float_To_Int32(fGyroZ);
+    itemGyro.ReportValue_0 = *(int32_t*)&fGyroX;
+    itemGyro.ReportValue_1 = *(int32_t*)&fGyroY;
+    itemGyro.ReportValue_2 = *(int32_t*)&fGyroZ;
     itemGyro.ReportValue_3 = 0;
 
     // Send ReportData_Items to queue to print
     xQueueSend(ReportData_Queue, &itemAccel, 0);
     xQueueSend(ReportData_Queue, &itemGyro, 0);
-
-    // Convert float to string because UARTprintf is unable to print float
-    //sprintf(fAccelX_str, "%6.2f", fAccelX);
-    //sprintf(fAccelY_str, "%6.2f", fAccelY);
-    //sprintf(fAccelZ_str, "%6.2f", fAccelZ);
-    //sprintf(fGyroX_str, "%6.2f", fGyroX);
-    //sprintf(fGyroY_str, "%6.2f", fGyroY);
-    //sprintf(fGyroZ_str, "%6.2f", fGyroZ);
-
-    // Report data via UARTprintf
-    //UARTprintf(">>MPU9150 Data: Accelerometer: {%s, %s, %s}\n", fAccelX_str, fAccelY_str, fAccelZ_str);
-    //UARTprintf(">>MPU9150 Data: Gyroscope:     {%s, %s, %s}\n", fGyroX_str, fGyroY_str, fGyroZ_str);
 
     // Delay
     vTaskDelay((SysTickFrequency * 1000) / 1000);

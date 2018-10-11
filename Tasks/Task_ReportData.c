@@ -62,7 +62,7 @@ extern void ReportData_SetOutputFormat( ReportData_OutputFormat newFormat ) {
 //	Define the ReportData Task
 //
 #define		NbrValues			4
-#define		FormattedStringSize	10
+#define		FormattedStringSize	32
 
 extern void Task_ReportData( void *pvParameters ) {
 

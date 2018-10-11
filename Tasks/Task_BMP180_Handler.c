@@ -50,7 +50,7 @@
 /************************************************
 * External variables
 ************************************************/
-// Access to current Sys Tick
+// Access to current SysTick
 extern volatile long int xPortSysTickCount;
 
 // SysTickClock Frequency
@@ -143,8 +143,6 @@ extern void Task_BMP180_Handler(void* pvParameters) {
   while (1) {
     float fTemperature = 0.0;
     float fPressure = 0.0;
-    char fTemperatureStr[15];
-    char fPressureStr[15];
 
     // Request a reading from the BMP180.
     BMP180DataRead(&sBMP180, BMP180SimpleCallback, 0);
@@ -154,15 +152,29 @@ extern void Task_BMP180_Handler(void* pvParameters) {
     BMP180DataPressureGetFloat(&sBMP180, &fPressure);
     BMP180DataTemperatureGetFloat(&sBMP180, &fTemperature);
 
-    // Convert float to string because UARTprintf is unable to print float
-    sprintf(fPressureStr, "%f", fPressure);
-    sprintf(fTemperatureStr, "%f", fTemperature);
+    ReportData_Item pressureItem;
+    pressureItem.TimeStamp = xPortSysTickCount;
+    pressureItem.ReportName = 0002;
+    pressureItem.ReportValueType_Flg = 0b0001;
+    pressureItem.ReportValue_0 = *(int32_t*)&fPressure;
+    pressureItem.ReportValue_1 = fPressure;
+    pressureItem.ReportValue_2 = 0;
+    pressureItem.ReportValue_3 = 0;
 
-    // Report data via UARTprintf
-    UARTprintf(">>BMP180  Data: Temperature: %s\n", fTemperatureStr);
-    UARTprintf(">>BMP180  Data: Pressure:    %s\n", fPressureStr);
+    ReportData_Item tempItem;
+    tempItem.TimeStamp = xPortSysTickCount;
+    tempItem.ReportName = 0003;
+    tempItem.ReportValueType_Flg = 0b0001;
+    tempItem.ReportValue_0 = *(int32_t*)&fTemperature;
+    tempItem.ReportValue_1 = 0;
+    tempItem.ReportValue_2 = 0;
+    tempItem.ReportValue_3 = 0;
+
+    // Send ReportData_Items to queue to print
+    xQueueSend(ReportData_Queue, &pressureItem, 0);
+    xQueueSend(ReportData_Queue, &tempItem, 0);
 
     // Delay
-    vTaskDelay((SysTickFrequency * 1) / 1000);
+    vTaskDelay((SysTickFrequency * 1000) / 1000);
   }
 }
