@@ -51,7 +51,7 @@ extern QueueHandle_t ReportData_Queue = NULL;
 //
 //	Define output format and subroutine to set output format.
 //
-ReportData_OutputFormat		ReportData_CurrentFormat = Mathematica_List;
+ReportData_OutputFormat		ReportData_CurrentFormat = Excel_CSV;
 
 extern void ReportData_SetOutputFormat( ReportData_OutputFormat newFormat ) {
 
