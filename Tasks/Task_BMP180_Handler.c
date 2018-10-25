@@ -4,7 +4,7 @@
 * @Email:    ben@bensokol.com
 * @Email:    kaisermittenburg@gmail.com
 * @Created:  October 2nd, 2018 [1:10pm]
-* @Modified: October 4th, 2018 [2:55pm]
+* @Modified: October 18th, 2018 [6:41am]
 * @Version:  1.0.0
 *
 * @Description: Periodically read and report temperature and pressure

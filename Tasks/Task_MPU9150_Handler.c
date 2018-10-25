@@ -4,7 +4,7 @@
 * @Email:    ben@bensokol.com
 * @Email:    kaisermittenburg@gmail.com
 * @Created:  October 4th, 2018 [1:02pm]
-* @Modified: October 4th, 2018 [2:54pm]
+* @Modified: October 18th, 2018 [6:45am]
 * @Version:  1.0.0
 *
 * @Description: Periodically read and report accelerometer and
@@ -157,6 +157,11 @@ extern void Task_MPU9150_Handler(void* pvParameters) {
     // Get the new accelerometer and pressure reading.
     MPU9150DataAccelGetFloat(&sMPU9150, &fAccelX, &fAccelY, &fAccelZ);
     MPU9150DataGyroGetFloat(&sMPU9150, &fGyroX, &fGyroY, &fGyroZ);
+
+    // By taking the reference of a float, casting that pointer to an int32_t
+    // pointer, then dereferencing that, the float is converted to an int32_t
+    // bitwise, without any conversions. This is done instead of using an
+    // assembly function such as Float_to_Int32.
 
     // Create ReportData_Item for Acceleration
     ReportData_Item itemAccel;
